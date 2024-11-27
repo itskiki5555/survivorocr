@@ -1,3 +1,4 @@
+from tkinterdnd2 import TkinterDnD, DND_FILES
 import tkinter as tk
 from tkinter import ttk, filedialog, simpledialog
 import ttkbootstrap as ttk
@@ -8,11 +9,17 @@ from ocr_pipeline import process_images  # Import the OCR pipeline
 
 class OCRApp:
     def __init__(self, root):
+        style = ttk.Style()
+        style.theme_use('darkly')
         self.root = root
         self.root.title("OCR Processor")
         self.root.geometry("800x600")
         self.root.minsize(800, 400)  # Set minimum window size to 800x600
         self.root.resizable(True, True)
+
+        # Initialize drag-and-drop functionality for the root window
+        self.root.drop_target_register(DND_FILES)
+        self.root.dnd_bind('<<Drop>>', self.handle_drop)
 
         # Initialize the default save location
         self.save_location = self.get_default_folder()
@@ -57,7 +64,7 @@ class OCRApp:
 
         # Row 3: Action Buttons
         row3 = ttk.Frame(section1)
-        row3.pack(fill=X, pady=(15, 5))
+        row3.pack(fill=X, pady=(45, 5))
 
         run_button = ttk.Button(row3, text="Run OCR", command=self.run_ocr, width=15)
         run_button.pack(side=LEFT, padx=5, expand=True)
@@ -67,18 +74,18 @@ class OCRApp:
 
         # Row 4: Logs
         row4 = ttk.Frame(section1)
-        row4.pack(fill=X, pady=(10, 5))
+        row4.pack(fill=X, pady=(10, 0))
 
         self.log_label = ttk.Label(row4, text="", anchor="center", wraplength=600)
         self.log_label.pack(fill=X, expand=True)
 
     def create_section2(self):
         section2 = ttk.Frame(self.root, padding=10)
-        section2.pack(fill=BOTH, expand=True, padx=10, pady=10)
+        section2.pack(fill=BOTH, expand=True, padx=10, pady=0)
 
         # Data Editing Column with Scrollbar
         data_frame = ttk.Frame(section2)
-        data_frame.pack(side=LEFT, fill=BOTH, expand=True, padx=(0, 5))
+        data_frame.pack(side=LEFT, fill=BOTH, expand=True, padx=(0, 10))
 
         self.data_table = ttk.Treeview(
             data_frame,
@@ -113,7 +120,6 @@ class OCRApp:
         self.csv_scrollbar.config(command=self.csv_text.yview)
 
         # Create the Copy Button for the CSV Textbox
-        # Create the Copy Button for the CSV Textbox
         copy_button = ttk.Button(
             csv_frame, 
             text="Copy", 
@@ -121,9 +127,25 @@ class OCRApp:
             command=lambda: self.root.clipboard_clear() or self.root.clipboard_append(self.csv_text.get(1.0, tk.END)) or self.root.update(),
             bootstyle="secondary"
         )
-        copy_button.place(relx=1.0, rely=0.0, anchor="ne", x=-15, y=4)  # Top-right position with small padding
+        copy_button.place(relx=1.0, rely=0.0, anchor="ne", x=-15, y=5)  # Top-right position with small padding
 
+    # --- Drag and drop ---
+    def handle_drop(self, event):
+        """Handle file drag-and-drop into the window."""
+        file_paths = self.root.tk.splitlist(event.data)  # Parse multiple files
+        if file_paths:
+            self.file_label.config(text=f"{len(file_paths)} file(s) selected")
+            self.selected_files = file_paths
+            
+            # Display filenames of selected files
+            file_names = [os.path.basename(file) for file in file_paths]
+            self.selected_files_label.config(text=", ".join(file_names))
+        else:
+            self.file_label.config(text="No files selected")
+            self.selected_files = []
+            self.selected_files_label.config(text="")  # Clear the label if no files are selected
 
+    # --- Editing Dataframe --
     def on_cell_double_click(self, event):
         """Allow the user to edit the value of a cell in the data table."""
         item = self.data_table.selection()
@@ -180,7 +202,6 @@ class OCRApp:
 
         # Destroy the entry widget when clicking elsewhere
         self.data_table.bind("<Button-1>", lambda e: entry.destroy(), add="+")
-
 
     def update_dataframe_from_table(self):
         """Update the DataFrame from the current content of the DataTable."""
@@ -239,7 +260,7 @@ class OCRApp:
             self.log_label.config(text="No files selected!")
             return
 
-        # Run OCR on the selected files (This function needs to be implemented in your OCR pipeline)
+        # Run OCR on the selected files 
         text_data = process_images(self.selected_files)  # Process the images and get the extracted text
         self.df = pd.DataFrame(text_data, columns=["Members", "Medals"])
 
@@ -256,7 +277,7 @@ class OCRApp:
             self.data_table.insert("", "end", values=list(row))
 
     def update_csv_textbox(self):
-        """Update the CSV Textbox with Data (from DataFrame) using tabs as delimiter."""
+        """Update the CSV Textbox with Data from DataFrame using tabs as delimiter."""
         if not hasattr(self, 'df') or self.df.empty:
             return
 
@@ -271,7 +292,7 @@ class OCRApp:
 
 # Function to launch the GUI
 def launch_gui():
-    root = ttk.Window(themename="darkly")
+    root = TkinterDnD.Tk()
     app = OCRApp(root)
     root.mainloop()
 
